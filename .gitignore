@@ -1,6 +1,6 @@
 
 /videos
 
-/.vscode
+.vscode
 /__pycache__
 /venv
