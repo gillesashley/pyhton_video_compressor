@@ -43,19 +43,27 @@ class VideoCompressionCLI:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 Examples:
+  python main.py                                        # Auto-process videos in ./videos/ folder (default mode)
   python main.py video.mp4 -q medium                    # Compress with medium quality
   python main.py video.mp4 -s 50MB -o small.mp4        # Compress to 50MB target size
   python main.py *.mp4 --batch -d output/               # Batch compress all MP4s
   python main.py video.mov -c h265 -q high              # Use H.265 codec with high quality
   python main.py video.avi -r 0.5                      # Compress to 50%% of original size
+
+Default Mode (no arguments):
+  When run without arguments, the application automatically:
+  - Scans ./videos/ folder for video files
+  - Compresses each video with medium quality and libx264 codec
+  - Saves compressed videos in the same folder with '_compressed' suffix
+  - Skips files that are already compressed (contain '_compressed' in filename)
             """
         )
         
         # Input arguments
         parser.add_argument(
-            'input', 
-            nargs='+', 
-            help='Input video file(s) or glob pattern'
+            'input',
+            nargs='*',  # Changed from '+' to '*' to make it optional
+            help='Input video file(s) or glob pattern. If not provided, automatically processes videos in ./videos/ folder'
         )
         parser.add_argument(
             '-o', '--output', 
@@ -181,18 +189,23 @@ Examples:
     def expand_input_files(self, input_patterns: List[str]) -> List[str]:
         """
         Expand glob patterns and validate input files.
-        
+        If no input patterns provided, automatically scan ./videos/ folder.
+
         Args:
-            input_patterns: List of file patterns or paths
-            
+            input_patterns: List of file patterns or paths (can be empty)
+
         Returns:
             List of valid input file paths
-            
+
         Raises:
             CLIError: If no valid files found
         """
+        # If no input patterns provided, use default videos folder
+        if not input_patterns:
+            return self._scan_default_videos_folder()
+
         input_files = []
-        
+
         for pattern in input_patterns:
             matches = glob.glob(pattern)
             if matches:
@@ -200,44 +213,93 @@ Examples:
             else:
                 # If no glob matches, treat as literal filename
                 input_files.append(pattern)
-        
+
         # Remove duplicates and filter existing files
         valid_files = []
         seen = set()
-        
+
         for filepath in input_files:
             if filepath in seen:
                 continue
             seen.add(filepath)
-            
+
             if not os.path.isfile(filepath):
                 logger.warning(f"File not found: {filepath}")
                 continue
-            
+
             if not FileUtils.is_supported_format(filepath):
                 logger.warning(f"Unsupported format: {filepath}")
                 continue
-            
+
             valid_files.append(filepath)
-        
+
         if not valid_files:
             raise CLIError("No valid input files found")
-        
+
         logger.info(f"Found {len(valid_files)} valid input file(s)")
         return valid_files
+
+    def _scan_default_videos_folder(self) -> List[str]:
+        """
+        Scan the default ./videos/ folder for video files.
+
+        Returns:
+            List of valid video files in ./videos/ folder
+
+        Raises:
+            CLIError: If videos folder doesn't exist or no valid files found
+        """
+        videos_folder = "./videos"
+
+        if not os.path.isdir(videos_folder):
+            raise CLIError(f"Default videos folder '{videos_folder}' not found. "
+                          "Please create the folder and add video files, or specify input files explicitly.")
+
+        logger.info(f"No input files specified. Scanning default folder: {videos_folder}")
+
+        # Scan for all supported video formats
+        video_files = []
+        for ext in FileUtils.SUPPORTED_FORMATS:
+            pattern = os.path.join(videos_folder, f"*{ext}")
+            matches = glob.glob(pattern)
+            video_files.extend(matches)
+
+        # Filter out already compressed files to avoid reprocessing
+        original_files = []
+        for filepath in video_files:
+            filename = os.path.basename(filepath)
+            if "_compressed" not in filename:
+                original_files.append(filepath)
+            else:
+                logger.debug(f"Skipping already compressed file: {filename}")
+
+        if not original_files:
+            if video_files:
+                raise CLIError(f"Found video files in {videos_folder}, but they all appear to be already compressed. "
+                              "No new files to process.")
+            else:
+                raise CLIError(f"No video files found in {videos_folder}. "
+                              "Please add video files to the folder or specify input files explicitly.")
+
+        logger.info(f"Found {len(original_files)} video file(s) in {videos_folder} ready for compression")
+        return original_files
     
-    def determine_processing_mode(self, args: argparse.Namespace, 
+    def determine_processing_mode(self, args: argparse.Namespace,
                                 input_files: List[str]) -> Tuple[str, str]:
         """
         Determine processing mode and output path.
-        
+
         Args:
             args: Parsed arguments
             input_files: List of input files
-            
+
         Returns:
-            Tuple of (mode, output_path) where mode is 'single' or 'batch'
+            Tuple of (mode, output_path) where mode is 'single', 'batch', or 'default'
         """
+        # Check if this is default mode (no input args provided)
+        if not args.input:
+            return 'default', './videos'
+
         if len(input_files) == 1 and args.output and not args.batch:
             return 'single', args.output
         else:
@@ -267,26 +329,30 @@ Examples:
         # Reduce noise from external libraries
         logging.getLogger('ffmpeg').setLevel(logging.WARNING)
     
-    def print_processing_info(self, args: argparse.Namespace, 
+    def print_processing_info(self, args: argparse.Namespace,
                             input_files: List[str]) -> None:
         """
         Print processing information to user.
-        
+
         Args:
             args: Parsed arguments
             input_files: List of input files
         """
         if args.quiet:
             return
-        
+
+        # Skip detailed info for default mode as it's handled in process_default_videos
+        if not args.input:
+            return
+
         print(f"Found {len(input_files)} file(s) to process.")
         print(f"Codec: {args.codec}, Quality: {args.quality}")
-        
+
         if args.size:
             target_size = FileUtils.parse_size_string(args.size)
             print(f"Target size: {target_size}MB")
-        
+
         if args.ratio:
             print(f"Compression ratio: {args.ratio}")
-        
+
         print()  # Empty line for better readability

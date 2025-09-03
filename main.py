@@ -20,6 +20,7 @@ python main.py input.mov -s 50MB -c h265
 """
 
 import sys
+import os
 import logging
 from typing import Optional
 
@@ -110,6 +111,64 @@ def process_batch_files(processor: VideoProcessor, input_files: list,
     )
 
 
+def process_default_videos(processor: VideoProcessor, input_files: list,
+                          videos_folder: str = './videos') -> dict:
+    """
+    Process video files in default mode - compress videos in ./videos/ folder
+    with default settings and save in the same folder with _compressed suffix.
+
+    Args:
+        processor: VideoProcessor instance
+        input_files: List of input file paths from videos folder
+        videos_folder: Path to videos folder
+
+    Returns:
+        Dictionary with processing results
+    """
+    results = {'success': [], 'failed': []}
+
+    print(f"🎬 Default mode: Processing {len(input_files)} video(s) from {videos_folder}")
+    print("📋 Using default settings: medium quality, libx264 codec")
+    print("💾 Compressed videos will be saved in the same folder with '_compressed' suffix")
+    print()
+
+    for i, input_path in enumerate(input_files, 1):
+        try:
+            print(f"[{i}/{len(input_files)}] Processing: {os.path.basename(input_path)}")
+
+            # Get video info
+            info = processor.get_video_info(input_path)
+
+            # Generate output path in the same folder with _compressed suffix
+            input_dir = os.path.dirname(input_path)
+            input_name = os.path.splitext(os.path.basename(input_path))[0]
+            input_ext = os.path.splitext(input_path)[1]
+            output_path = os.path.join(input_dir, f"{input_name}_compressed{input_ext}")
+
+            # Use default settings: medium quality, libx264 codec
+            settings = CompressionSettings.get_compression_settings(
+                'medium', 'libx264', info
+            )
+
+            # Compress video
+            success = processor.compress_video(
+                input_path, output_path, settings, preserve_metadata=True
+            )
+
+            if success:
+                processor.show_compression_results(input_path, output_path)
+                results['success'].append((input_path, output_path))
+            else:
+                results['failed'].append(input_path)
+
+        except Exception as e:
+            logger.error(f"Error processing {input_path}: {e}")
+            print(f"Error processing {input_path}: {e}")
+            results['failed'].append(input_path)
+
+    return results
+
+
 def print_batch_summary(results: dict) -> None:
     """
     Print batch processing summary.
@@ -165,6 +224,18 @@ def main():
                 not args.no_metadata
             )
             sys.exit(0 if success else 1)
+
+        elif mode == 'default':
+            # Default processing mode - compress videos in ./videos/ folder
+            logger.info(f"Default mode: Processing {len(input_files)} files from ./videos/ folder")
+            results = process_default_videos(processor, input_files, output_path)
+
+            # Print summary
+            if not args.quiet:
+                print_batch_summary(results)
+
+            # Exit with appropriate code
+            sys.exit(0 if not results['failed'] else 1)
 
         else:
             # Batch processing

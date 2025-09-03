@@ -134,16 +134,16 @@ def test_compression_settings():
 def test_cli():
     """Test CLI functionality."""
     print("\nTesting CLI...")
-    
+
     from cli import VideoCompressionCLI, CLIError
-    
+
     try:
         cli = VideoCompressionCLI()
         print("✓ CLI initialization works correctly")
     except Exception as e:
         print(f"✗ CLI initialization failed: {e}")
         return False
-    
+
     try:
         # Test argument parsing with help
         try:
@@ -155,15 +155,33 @@ def test_cli():
     except Exception as e:
         print(f"✗ Help argument parsing failed: {e}")
         return False
-    
+
+    try:
+        # Test default mode detection (empty args)
+        args = cli.parse_arguments([])
+        assert args.input == []
+        print("✓ Default mode (empty args) parsing works correctly")
+    except Exception as e:
+        print(f"✗ Default mode parsing failed: {e}")
+        return False
+
+    try:
+        # Test explicit file arguments still work
+        args = cli.parse_arguments(['test.mp4'])
+        assert args.input == ['test.mp4']
+        print("✓ Explicit file arguments work correctly")
+    except Exception as e:
+        print(f"✗ Explicit file arguments failed: {e}")
+        return False
+
     return True
 
 def test_progress_tracker():
     """Test progress tracking functionality."""
     print("\nTesting progress tracker...")
-    
+
     from progress_tracker import ProgressTracker
-    
+
     try:
         # Test basic progress tracker creation
         tracker = ProgressTracker(100, "Test")
@@ -174,7 +192,42 @@ def test_progress_tracker():
     except Exception as e:
         print(f"✗ Progress tracker creation failed: {e}")
         return False
-    
+
+    return True
+
+def test_default_mode():
+    """Test default mode functionality."""
+    print("\nTesting default mode...")
+
+    from cli import VideoCompressionCLI, CLIError
+
+    try:
+        cli = VideoCompressionCLI()
+
+        # Test that videos folder exists and has files
+        if os.path.exists('./videos'):
+            try:
+                files = cli._scan_default_videos_folder()
+                if files:
+                    print(f"✓ Default mode found {len(files)} video file(s) in ./videos/")
+                else:
+                    print("ℹ No video files found in ./videos/ folder (this is okay for testing)")
+            except CLIError as e:
+                print(f"ℹ Expected CLIError for empty videos folder: {e}")
+        else:
+            print("ℹ ./videos/ folder doesn't exist (this is okay for testing)")
+
+        # Test processing mode determination
+        args = cli.parse_arguments([])
+        mode, output_path = cli.determine_processing_mode(args, [])
+        assert mode == 'default'
+        assert output_path == './videos'
+        print("✓ Default processing mode determination works correctly")
+
+    except Exception as e:
+        print(f"✗ Default mode testing failed: {e}")
+        return False
+
     return True
 
 def main():
@@ -188,7 +241,8 @@ def main():
         test_file_utils,
         test_compression_settings,
         test_cli,
-        test_progress_tracker
+        test_progress_tracker,
+        test_default_mode
     ]
     
     passed = 0

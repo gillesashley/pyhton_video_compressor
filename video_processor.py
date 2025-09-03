@@ -112,9 +112,10 @@ class VideoProcessor:
             
             return info
             
-        except ffmpeg.Error as e:
-            raise VideoProcessingError(f"FFprobe error for {filepath}: {e}") from e
         except Exception as e:
+            # ffmpeg-python may not expose a specific Error class in some
+            # installations. Catch all exceptions here and wrap them in
+            # VideoProcessingError so callers get a consistent error type.
             raise VideoProcessingError(f"Could not analyze video {filepath}: {e}") from e
     
     def build_ffmpeg_command(self, input_path: str, output_path: str,

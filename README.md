@@ -22,6 +22,7 @@ A powerful and modular video compression tool using FFmpeg with configurable qua
 ## Installation
 
 1. **Install FFmpeg**:
+
    - Windows: Download from [ffmpeg.org](https://ffmpeg.org/download.html) or use `winget install FFmpeg`
    - macOS: `brew install ffmpeg`
    - Linux: `sudo apt install ffmpeg` (Ubuntu/Debian) or equivalent
@@ -33,10 +34,30 @@ A powerful and modular video compression tool using FFmpeg with configurable qua
 
 ## Usage
 
+### Default Mode (No Arguments)
+
+The easiest way to use the application is with no arguments:
+
+```bash
+# Automatically process all videos in ./videos/ folder
+python main.py
+```
+
+**Default Mode Behavior:**
+
+- 🔍 Automatically scans `./videos/` folder for video files
+- ⚙️ Uses default settings: medium quality, libx264 codec
+- 💾 Saves compressed videos in the same folder with `_compressed` suffix
+- 🚫 Skips files already containing `_compressed` in the filename
+- 📁 Example: `video.mp4` becomes `video_compressed.mp4`
+
 ### Basic Examples
 
 ```bash
-# Compress with medium quality (default)
+# Default mode - process videos in ./videos/ folder
+python main.py
+
+# Compress specific file with medium quality (default)
 python main.py video.mp4
 
 # Compress with high quality and custom output
@@ -68,11 +89,13 @@ python main.py *.mp4 --batch -q high -c libx265 -d output/
 ### Command Line Options
 
 #### Input/Output
+
 - `input`: Input video file(s) or glob pattern
 - `-o, --output`: Output file path (single file mode)
 - `-d, --output-dir`: Output directory (batch mode, default: ./compressed)
 
 #### Compression Settings
+
 - `-q, --quality`: Quality preset (ultra, high, medium, low) - default: medium
 - `-c, --codec`: Video codec (libx264, libx265) - default: libx264
 - `-s, --size`: Target file size (e.g., 50MB, 1GB)
@@ -80,6 +103,7 @@ python main.py *.mp4 --batch -q high -c libx265 -d output/
 - `-f, --format`: Output format - default: mp4
 
 #### Options
+
 - `--batch`: Enable batch processing mode
 - `--no-metadata`: Do not preserve metadata
 - `--verbose`: Verbose output with detailed logging
@@ -87,12 +111,12 @@ python main.py *.mp4 --batch -q high -c libx265 -d output/
 
 ## Quality Presets
 
-| Preset | CRF | Description | Use Case |
-|--------|-----|-------------|----------|
-| Ultra  | 15  | Highest quality, largest files | Archival, professional work |
+| Preset | CRF | Description                      | Use Case                         |
+| ------ | --- | -------------------------------- | -------------------------------- |
+| Ultra  | 15  | Highest quality, largest files   | Archival, professional work      |
 | High   | 18  | High quality, good for most uses | General high-quality compression |
-| Medium | 23  | Balanced quality and size | Default, good for most videos |
-| Low    | 28  | Lower quality, smaller files | Quick sharing, storage-limited |
+| Medium | 23  | Balanced quality and size        | Default, good for most videos    |
+| Low    | 28  | Lower quality, smaller files     | Quick sharing, storage-limited   |
 
 ## Project Structure
 
@@ -130,7 +154,21 @@ The application includes comprehensive error handling:
 
 ## Examples
 
+### Default Mode
+
+```bash
+# Process all videos in ./videos/ folder automatically
+python main.py
+
+# This will:
+# - Find all video files in ./videos/ (mp4, avi, mov, etc.)
+# - Skip files already containing "_compressed" in the name
+# - Compress each video with medium quality and libx264 codec
+# - Save as: original_name_compressed.extension in the same folder
+```
+
 ### Single File Compression
+
 ```bash
 # Basic compression
 python main.py input.mp4 -o output.mp4
@@ -143,6 +181,7 @@ python main.py large_video.mp4 -s 100MB -o compressed.mp4
 ```
 
 ### Batch Processing
+
 ```bash
 # Process all videos in directory
 python main.py *.mp4 *.avi --batch -d compressed_videos/
@@ -164,7 +203,9 @@ python main.py *.* --batch -r 0.5 -d half_size_videos/
 4. **Out of disk space**: Check available disk space before compression
 
 ### Verbose Mode
+
 Use `--verbose` flag for detailed logging:
+
 ```bash
 python main.py video.mp4 --verbose
 ```
